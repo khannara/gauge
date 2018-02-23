@@ -18,6 +18,7 @@
 package conn
 
 import (
+	"github.com/getgauge/gauge/logger"
 	"bytes"
 	"fmt"
 	"net"
@@ -133,7 +134,7 @@ func getResponseForGaugeMessage(message *gauge_messages.Message, conn net.Conn, 
 
 	handle(err, res)
 	m.put(message.GetMessageId(), res)
-
+	logger.GaugeLog.Debugf("gauge is writing message %v with id %v",message.GetMessageType().String(),message.GetMessageId())
 	responseBytes, err := writeDataAndGetResponse(conn, data)
 	handle(err,res)
 
@@ -141,7 +142,7 @@ func getResponseForGaugeMessage(message *gauge_messages.Message, conn net.Conn, 
 	err = proto.Unmarshal(responseBytes, responseMessage)
 	responseRes := m.get(responseMessage.GetMessageId())
 	m.delete(responseMessage.GetMessageId())
-		
+	logger.GaugeLog.Debugf("gauge read message %v with id %v",responseMessage.GetMessageType().String(),responseMessage.GetMessageId())
 	handle(err, responseRes)
 
 	err = checkUnsupportedResponseMessage(responseMessage)
