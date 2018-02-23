@@ -122,32 +122,33 @@ func WriteGaugeMessage(message *gauge_messages.Message, conn net.Conn) error {
 func getResponseForGaugeMessage(message *gauge_messages.Message, conn net.Conn, res response, timeout time.Duration) {
 	message.MessageId = common.GetUniqueID()
 	res.addTimer(timeout, message)
-	handle := func(err error) {
+	handle := func(err error, resChan response) {
 		if err != nil {
-			res.stopTimer()
-			res.err <- err
+			resChan.stopTimer()
+			resChan.err <- err
 		}
 	}
 
 	data, err := proto.Marshal(message)
 
-	handle(err)
+	handle(err, res)
 	m.put(message.GetMessageId(), res)
 
 	responseBytes, err := writeDataAndGetResponse(conn, data)
-	handle(err)
+	handle(err,res)
 
 	responseMessage := &gauge_messages.Message{}
 	err = proto.Unmarshal(responseBytes, responseMessage)
-	handle(err)
+	responseRes := m.get(responseMessage.GetMessageId())
+	m.delete(responseMessage.GetMessageId())
+		
+	handle(err, responseRes)
 
 	err = checkUnsupportedResponseMessage(responseMessage)
-	handle(err)
+	handle(err, responseRes)
 
-	responseRes := m.get(responseMessage.GetMessageId())
 	responseRes.stopTimer()
 	responseRes.result <- responseMessage
-	m.delete(responseMessage.GetMessageId())
 }
 
 func checkUnsupportedResponseMessage(message *gauge_messages.Message) error {
